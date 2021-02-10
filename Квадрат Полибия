@@ -1,0 +1,85 @@
+#include <iostream>
+#include <vector>
+#include <string>
+#include <Windows.h>
+#include <fstream>
+#include <cassert>
+#include <locale>
+using namespace std;
+//------------------------------------------------------------------
+void fllng(const char beg, const char end, vector<string> &alph) {
+    for (char sym = beg; sym <= end; ++sym) {
+        if (alph.back().size() == 6)
+            alph.emplace_back();
+        alph.back().append(1, sym);
+    }
+}
+//-----------------------------------------------------------------
+bool serch_sym(fstream &fail, vector<string> &alph, int &sym, int fl) {
+    for (auto iter = alph.begin(); iter < alph.end(); ++iter) {
+        int ind = iter->find(sym, 0);
+        if (ind != string::npos) {
+            fail.seekp(-1, fstream::cur);
+            if (fl)
+                if (++iter == alph.end() || iter->size() < ind)
+                    sym = alph.begin()->at(ind);
+                else
+                    sym = iter->at(ind);
+            else
+                if (iter == alph.begin() && (--alph.end())->size() < ind)
+                    sym = (alph.end() - 2)->at(ind);
+                else if (iter == alph.begin())
+                    sym = (--alph.end())->at(ind);
+                else
+                    sym = (--iter)->at(ind);
+            if (fail << static_cast<char>(sym) << flush)
+                return true;
+            return false;
+        }
+    }
+    return false;
+}
+//-----------------------------------------------------------------
+int main() {
+    SetConsoleCP(1251);
+    SetConsoleOutputCP(1251);
+    setlocale(LC_CTYPE, "rus");
+    vector<string> llatin(1);
+    vector<string> lkiril(1);
+    vector<string> ulatin(1);
+    vector<string> ukiril(1);
+    fllng('A', 'Z', ulatin);
+    fllng('А', 'Я', ukiril);
+    fllng('a', 'z', llatin);
+    fllng('а', 'я', lkiril);
+    fstream fail("Polib.txt", fstream::ate | fstream::in | fstream::out);
+    if (!fail.is_open())
+        fail.open("Polib.txt", fstream::app | fstream::in | fstream::out);
+    string sent;
+    cout << "Введите строки для кодировки, для конца ввода Ctrl + Z\n";
+    while (getline(cin, sent)) 
+        fail << sent + '\n' << flush;
+    cin.clear();
+    fail.seekg(0, fstream::beg);
+    int sym, fl = -1;
+    while (fl < 0 || fl > 1) {
+        cout << "Кодировать 1 разкодировать 0\n";
+        cin >> fl;
+        if (!cin.good()) {
+            while (cin.get() != '\n');
+            cin.clear();
+        }
+    }
+    while ((sym = fail.get()) != EOF) {
+        if (sym >= 'A' && sym <= 'Z')
+            assert(serch_sym(fail, ulatin, sym, fl));
+        else if (sym >= 192 && sym <= 223)
+            assert(serch_sym(fail, ukiril, sym, fl));
+        else if (sym >= 'a' && sym <= 'z')
+            assert(serch_sym(fail, llatin, sym, fl));
+        else if (sym >= 224 && sym <= 255)
+            assert(serch_sym(fail, lkiril, sym, fl));
+    }
+    fail.close();
+    return 0;
+}
